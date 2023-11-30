@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="/socket.io/socket.io.js"></script>
+    <link rel="stylesheet" href="css/style.css">
+    <title>Real-Time Whiteboard</title>
+  </head>
+
+  <body>
+    <canvas id="whiteboard" width="800" height="600"></canvas>
+    <input type="color" id="colorPicker" value="#000000" />
+    <input type="range" id="lineWidth" min="1" max="20" value="5" />
+    <button id="clearBtn">Clear</button>
+
+    <script>
+      const socket = io();
+      const canvas = document.getElementById("whiteboard");
+      const context = canvas.getContext("2d");
+      let isDrawing = false;
+
+      canvas.addEventListener("mousedown", (event) => {
+        isDrawing = true;
+        draw(
+          event.pageX - canvas.offsetLeft,
+          event.pageY - canvas.offsetTop,
+          false
+        );
+      });
+
+      canvas.addEventListener("mousemove", (event) => {
+        if (isDrawing) {
+          draw(
+            event.pageX - canvas.offsetLeft,
+            event.pageY - canvas.offsetTop,
+            true
+          );
+          socket.emit("draw", {
+            x: event.pageX - canvas.offsetLeft,
+            y: event.pageY - canvas.offsetTop,
+            drawing: true,
+          });
+        }
+      });
+
+      canvas.addEventListener("mouseup", () => {
+        isDrawing = false;
+      });
+
+      socket.on("draw", (data) => {
+        draw(data.x, data.y, data.drawing, data.color, data.lineWidth);
+      });
+
+      function draw(x, y, isDrawing, color = "#000000", lineWidth = 5) {
+        if (!isDrawing) {
+          context.beginPath();
+          context.moveTo(x, y);
+        } else {
+          context.lineTo(x, y);
+          context.strokeStyle = color;
+          context.lineWidth = lineWidth;
+          context.stroke();
+        }
+      }
+
+      const colorPicker = document.getElementById("colorPicker");
+      const lineWidth = document.getElementById("lineWidth");
+
+      colorPicker.addEventListener("input", () => {
+        socket.emit("join", {
+          color: colorPicker.value,
+          lineWidth: lineWidth.value,
+        });
+      });
+
+      lineWidth.addEventListener("input", () => {
+        socket.emit("join", {
+          color: colorPicker.value,
+          lineWidth: lineWidth.value,
+        });
+      });
+      const clearButton = document.getElementById("clearBtn");
+      clearButton.addEventListener("click", () => {
+        context.clearRect(0, 0, canvas.width, canvas.height);
+        socket.emit("clear");
+      });
+
+      socket.on("clear", () => {
+        context.clearRect(0, 0, canvas.width, canvas.height);
+      });
+    </script>
+  </body>
+</html>
