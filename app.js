@@ -1,26 +1,37 @@
 const express = require('express');
 const http = require('http');
 const socketIO = require('socket.io');
+const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
 const io = socketIO(server);
 
-app.use(express.static(__dirname + '/Users/sampatel/Documents/real-timecollaborationtool/Main/index.html'));
+app.use(express.static(path.join(__dirname, 'public')));
 
-let users = {}; 
+let users = {};
 
 io.on('connection', (socket) => {
-  console.log('New user connected');
+  console.log('New user connected:', socket.id);
 
-  socket.on('draw', (data) => {
-    socket.broadcast.emit('draw', data);
+  socket.on('join', (username) => {
+    users[socket.id] = { username, color: '#000000', lineWidth: 5 };
+    io.emit('userJoined', { username, id: socket.id });
   });
-});
 
-io.on('connection', (socket) => {
-  console.log('New user connected');
+  socket.on('message', (data) => {
+    io.emit('message', { username: users[socket.id].username, message: data });
+  });
 
+  socket.on('disconnect', () => {
+    if (users[socket.id]) {
+      const username = users[socket.id].username;
+      delete users[socket.id];
+      io.emit('userLeft', { username });
+    }
+  });
+
+  // Handle draw events for collaborative whiteboard
   socket.on('draw', (data) => {
     if (users[socket.id]) {
       socket.broadcast.emit('draw', {
@@ -33,15 +44,8 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('join', (data) => {
-    users[socket.id] = {
-      color: data.color,
-      lineWidth: data.lineWidth
-    };
-  });
-
-  socket.on('disconnect', () => {
-    delete users[socket.id];
+  socket.on('clear', () => {
+    io.emit('clear');
   });
 });
 
