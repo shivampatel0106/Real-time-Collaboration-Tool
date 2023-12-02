@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Real-Time Text Collaboration</title>
+  <style>
+    body {
+      margin: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      background-color: #f0f0f0;
+      font-family: Arial, sans-serif;
+    }
+
+    #chatArea {
+      height: 300px;
+      overflow-y: scroll;
+      border: 1px solid #ccc;
+      padding: 10px;
+      margin-bottom: 10px;
+    }
+
+    #messageInput,
+    #usernameInput,
+    #sendMessageBtn,
+    #joinChatBtn {
+      margin: 5px;
+      padding: 5px;
+    }
+
+    #sendMessageBtn,
+    #joinChatBtn {
+      background-color: #007bff;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+
+    #sendMessageBtn:hover,
+    #joinChatBtn:hover {
+      background-color: #0056b3;
+    }
+  </style>
+</head>
+<body>
+  <input type="text" id="usernameInput" placeholder="Enter username">
+  <button id="joinChatBtn" onclick="joinChat()">Join Chat</button>
+  <div id="chatArea"></div>
+  <input type="text" id="messageInput" placeholder="Type a message">
+  <button id="sendMessageBtn" onclick="sendMessage()">Send</button>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+  const canvas = document.getElementById("whiteboard");
+  const context = canvas.getContext("2d");
+  let isDrawing = false;
+
+  canvas.addEventListener("mousedown", (event) => {
+    isDrawing = true;
+    draw(
+      event.pageX - canvas.offsetLeft,
+      event.pageY - canvas.offsetTop,
+      false
+    );
+  });
+
+  canvas.addEventListener("mousemove", (event) => {
+    if (isDrawing) {
+      draw(
+        event.pageX - canvas.offsetLeft,
+        event.pageY - canvas.offsetTop,
+        true
+      );
+      socket.emit("draw", {
+        x: event.pageX - canvas.offsetLeft,
+        y: event.pageY - canvas.offsetTop,
+        drawing: true,
+        color: document.getElementById('colorPicker').value,
+        lineWidth: document.getElementById('lineWidth').value
+      });
+    }
+  });
+
+  canvas.addEventListener("mouseup", () => {
+    isDrawing = false;
+  });
+
+  socket.on("draw", (data) => {
+    draw(data.x, data.y, data.drawing, data.color, data.lineWidth);
+  });
+
+  function draw(x, y, isDrawing, color, lineWidth) {
+    if (!isDrawing) {
+      context.beginPath();
+      context.moveTo(x, y);
+    } else {
+      context.lineTo(x, y);
+      context.strokeStyle = color;
+      context.lineWidth = lineWidth;
+      context.lineCap = 'round';
+      context.stroke();
+    }
+  }
+
+  const clearButton = document.getElementById("clearBtn");
+  clearButton.addEventListener("click", () => {
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    socket.emit("clear");
+  });
+
+  socket.on("clear", () => {
+    context.clearRect(0, 0, canvas.width, canvas.height);
+  });
+
+    function joinChat() {
+      const username = document.getElementById('usernameInput').value;
+      if (username) {
+        socket.emit('join', username);
+      }
+    }
+
+    socket.on('userJoined', (data) => {
+      displayMessage(`<em>${data.username} joined the chat.</em>`);
+    });
+
+    socket.on('userLeft', (data) => {
+      displayMessage(`<em>${data.username} left the chat.</em>`);
+    });
+
+    socket.on('message', (data) => {
+      displayMessage(`<strong>${data.username}:</strong> ${data.message}`);
+    });
+
+    function sendMessage() {
+      const message = document.getElementById('messageInput').value;
+      if (message) {
+        socket.emit('message', message);
+        displayMessage(`<strong>You:</strong> ${message}`);
+        document.getElementById('messageInput').value = '';
+      }
+    }
+
+    function displayMessage(message) {
+      const chatArea = document.getElementById('chatArea');
+      const messageElement = document.createElement('p');
+      messageElement.innerHTML = message;
+      chatArea.appendChild(messageElement);
+      chatArea.scrollTop = chatArea.scrollHeight;
+    }
+  </script>
+</body>
+</html>
