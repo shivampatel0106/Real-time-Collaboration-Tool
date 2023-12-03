@@ -1,51 +1,44 @@
 const express = require('express');
 const http = require('http');
-const socketIO = require('socket.io');
+const socketIo = require('socket.io');
 const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
-const io = socketIO(server);
+const io = socketIo(server);
+
+// Store user information
+const users = {};
 
 app.use(express.static(path.join(__dirname, 'public')));
 
-let users = {};
+// Set a route handler for the root path
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
 
+// Socket.io connections
 io.on('connection', (socket) => {
-  console.log('New user connected:', socket.id);
+  console.log('A user connected');
 
-  socket.on('join', (username) => {
-    users[socket.id] = { username, color: '#000000', lineWidth: 5 };
-    io.emit('userJoined', { username, id: socket.id });
+  // Handle setting username and user selection
+  socket.on('setUsername', (username) => {
+    users[socket.id] = { username };
+    io.emit('updateUsers', Object.values(users));
   });
 
+  // Handle messages
   socket.on('message', (data) => {
-    io.emit('message', { username: users[socket.id].username, message: data });
+    const { username } = users[socket.id];
+
+    io.emit('message', { username, message: data.message, userId: socket.id });
   });
 
+  // Handle disconnections
   socket.on('disconnect', () => {
-    if (users[socket.id]) {
-      const username = users[socket.id].username;
-      delete users[socket.id];
-      io.emit('userLeft', { username });
-    }
-  });
-
-  // Handle draw events for collaborative whiteboard
-  socket.on('draw', (data) => {
-    if (users[socket.id]) {
-      socket.broadcast.emit('draw', {
-        x: data.x,
-        y: data.y,
-        drawing: data.drawing,
-        color: users[socket.id].color,
-        lineWidth: users[socket.id].lineWidth
-      });
-    }
-  });
-
-  socket.on('clear', () => {
-    io.emit('clear');
+    delete users[socket.id];
+    io.emit('updateUsers', Object.values(users));
+    console.log('A user disconnected');
   });
 });
 
