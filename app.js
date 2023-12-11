@@ -7,12 +7,12 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server);
 
-// Store user information
+// To Store user information
 const users = {};
 
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Set a route handler for the root path
+// To Set a route handler for the root path
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
@@ -21,20 +21,34 @@ app.get('/', (req, res) => {
 io.on('connection', (socket) => {
   console.log('A user connected');
 
-  // Handle setting username and user selection
+  // To Handle setting username and user selection
   socket.on('setUsername', (username) => {
     users[socket.id] = { username };
     io.emit('updateUsers', Object.values(users));
   });
 
-  // Handle messages
+  // To Handle messages
   socket.on('message', (data) => {
     const { username } = users[socket.id];
-
     io.emit('message', { username, message: data.message, userId: socket.id });
   });
 
-  // Handle disconnections
+  // To Handle file sharing
+  socket.on('file', (data) => {
+    socket.broadcast.emit('file', data);
+  });
+
+  // To Handle emojis/reactions
+  socket.on('emoji', (emoji) => {
+    socket.broadcast.emit('emoji', emoji);
+  });
+
+  // To Handle typing indicator
+  socket.on('typing', (isTyping) => {
+    socket.broadcast.emit('typing', { isTyping, userId: socket.id });
+  });
+
+  // To Handle disconnections
   socket.on('disconnect', () => {
     delete users[socket.id];
     io.emit('updateUsers', Object.values(users));
