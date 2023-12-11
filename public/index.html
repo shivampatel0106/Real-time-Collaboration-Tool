@@ -1,186 +1,229 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <title>Real-time Collaboration Tool</title>
-    <style>
-      /* Basic CSS */
-      body {
-        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-        background-color: #f4f4f4;
-        margin: 0;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        height: 100vh;
-      }
-      h1 {
-        color: #333;
-        text-align: center;
-        margin-bottom: 30px;
-        font-size: 2rem;
-        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
-      }
+<head>
+  <meta charset="UTF-8">
+  <title>Real-time Collaboration Tool</title>
+  <style>
+    body, h1, h2, h3, p, ul, li {
+      margin: 0;
+      padding: 0;
+    }
+    
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f4f4;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    .container {
+      background-color: #fff;
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+      width: 90%; 
+      max-width: 400px; 
+    }
+
+    h1 {
+      font-size: 1.8rem;
+      color: #333;
+      text-align: center;
+      margin-bottom: 20px;
+      text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
+    }
+
+    /* Form elements */
+    .section {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    label {
+      font-weight: bold;
+    }
+
+    input[type="text"],
+    input[type="file"],
+    button {
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      width: 100%;
+    }
+
+    input[type="text"],
+    input[type="file"] {
+      margin-bottom: 10px;
+    }
+
+    button {
+      background-color: #1c3150;
+      color: white;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+
+    button:hover {
+      background-color: #78809D;
+    }
+
+    /* Chat area */
+    .chat-area {
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      background-color: #f9f9f9;
+      box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.1);
+      margin-top: 20px;
+      padding: 10px;
+      max-height: 200px; /* Adjust as needed */
+      overflow-y: auto;
+      position: relative;
+    }
+
+    .message-item {
+      padding: 8px 12px;
+      border-bottom: 1px solid #eee;
+    }
+
+    .message-item:last-child {
+      border-bottom: none;
+    }
+
+    /* Typing indicator */
+    #typingIndicator {
+      position: absolute;
+      bottom: 5px;
+      left: 10px;
+      color: #888;
+      font-size: 0.8rem;
+    }
+  </style>
+  <!-- Socket.io -->
+  <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+  <div class="container">
+    <h1>Real-time Collaboration Tool</h1>
+
+    <div class="section" id="userSection">
+      <!-- User UI elements -->
+      <label for="username">Enter Username:</label>
+      <input type="text" id="username" placeholder="Username">
+      <button onclick="setUsername()">Set Username</button>
+      <button onclick="deleteUsername()">Delete Username</button>
+
+      <!-- Other UI elements -->
+      <input type="text" id="messageInput" placeholder="Type a message..." oninput="sendTypingEvent()">
+      <button onclick="sendMessage()">Send</button>
       
-      .container {
-        background-color: #fff;
-        border-radius: 10px;
-        padding: 20px;
-        box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        width: 80%;
-        max-width: 800px;
-      }
-
-      label,
-      input,
-      select,
-      button {
-        margin-bottom: 10px;
-      }
-      input[type="text"],
-      select {
-        padding: 8px;
-        border: 1px solid #ccc;
-        border-radius: 5px;
-        width: 100%;
-        box-sizing: border-box;
-      }
-      button {
-        padding: 8px 15px;
-        border: none;
-        border-radius: 5px;
-        background-color: #1c3150;
-        color: white;
-        cursor: pointer;
-        transition: background-color 0.3s ease;
-      }
-
-      button:hover {
-        background-color: #78809D;
-      }
-
-      ul {
-        list-style-type: none;
-        padding: 0;
-        margin-top: 20px;
-        width: 100%;
-        overflow-y: scroll;
-        max-height: 300px;
-        border: 1px solid #ccc;
-        border-radius: 5px;
-        background-color: #f9f9f9;
-        box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.1);
-      }
-      .message-item {
-        padding: 10px;
-        border-bottom: 1px solid #eee;
-        transition: background-color 0.3s ease;
-      }
-      .message-item:last-child {
-        border-bottom: none;
-      }
-      .message-item:hover {
-        background-color: #f0f0f0;
-      }
-  
-      .sections-container {
-        display: flex;
-        justify-content: space-between;
-        width: 100%;
-      }
-      .section {
-        width: 30%;
-        border: 1px solid #ccc;
-        border-radius: 5px;
-        padding: 10px;
-        margin-bottom: 20px;
-        background-color: #fff;
-      }
-
-      .chat-area {
-        width: 35%;
-        border: 1px solid #ccc;
-        border-radius: 5px;
-        padding: 10px;
-        background-color: #fff;
-        overflow-y: auto;
-        height: 400px;
-      }
-    </style>
-    <!-- Socket.io -->
-    <script src="/socket.io/socket.io.js"></script>
-  </head>
-  <body>
-    <div class="container">
-      <h1>Real-time Collaboration Tool</h1>
-  
-      <div class="section" id="userSection">
-        <!-- User UI elements -->
-        <label for="username">Enter Username:</label>
-        <input type="text" id="username" placeholder="Username">
-        <button onclick="setUsername()">Set Username</button>
-        <button onclick="deleteUsername()">Delete Username</button>
-  
-        <!-- Other UI elements -->  
-        <input type="text" id="messageInput" placeholder="Type a message...">
-        <button onclick="sendMessage()">Send</button>
-      </div>
-  
-      <!-- Chat Area -->
-      <div class="chat-area" id="chatArea">
-        <!-- Chat messages will be displayed here -->
-      </div>
+      <!-- File sharing -->
+      <input type="file" id="fileInput">
+      <button onclick="sendFile()">Send File</button>
     </div>
+
+    <!-- Chat Area -->
+    <div class="chat-area" id="chatArea" placeholder="chat-area">
+      <!-- Chat messages will be displayed here -->
+      <div id="typingIndicator"></div>
+    </div>
+  </div>
+
+  <script>
+    const socket = io();
   
-    <script>
-      const socket = io();
-  
-      // Function to set username
-      function setUsername() {
-        const usernameInput = document.getElementById('username');
-        const username = usernameInput.value;
-  
-        socket.emit('setUsername', username);
+  // Function to set username
+  function setUsername() {
+    const usernameInput = document.getElementById('username');
+    const username = usernameInput.value;
+
+    socket.emit('setUsername', username);
+  }
+
+  // Function to delete username
+  function deleteUsername() {
+    const usernameInput = document.getElementById('username');
+    usernameInput.value = ''; 
+
+    socket.emit('setUsername', '');
+  }
+
+  // Function to send messages
+  function sendMessage() {
+    const messageInput = document.getElementById('messageInput');
+    const message = messageInput.value;
+
+    socket.emit('message', { message });
+
+    messageInput.value = '';
+  }
+
+  // Function to create and append chat messages to the chat area
+  function appendChatMessage(data) {
+    const chatArea = document.getElementById('chatArea');
+    const messageItem = document.createElement('div');
+    messageItem.classList.add('message-item');
+
+    messageItem.innerHTML = `<span>${data.username}: </span>${data.message}`;
+
+    chatArea.appendChild(messageItem);
+    chatArea.scrollTop = chatArea.scrollHeight; 
+  }
+
+  // Socket event listeners for receiving messages
+  socket.on('message', (data) => {
+    appendChatMessage(data);
+  });
+
+    function displayReceivedFile(data) {
+      const chatArea = document.getElementById('chatArea');
+      const fileMessage = document.createElement('div');
+      fileMessage.classList.add('message-item');
+      
+      const downloadLink = document.createElement('a');
+      downloadLink.href = data.fileData;
+      downloadLink.download = data.fileName;
+      downloadLink.textContent = data.fileName;
+
+      fileMessage.appendChild(downloadLink);
+      chatArea.appendChild(fileMessage);
+      chatArea.scrollTop = chatArea.scrollHeight;
+    }
+
+    // Socket event listeners for receiving files
+    socket.on('file', (data) => {
+      displayReceivedFile(data);
+    });
+
+    // Function to show/hide typing indicator
+    let typingTimeout;
+    const TYPING_INTERVAL = 1000;
+
+    function handleTypingIndicator(typingData) {
+      const typingIndicator = document.getElementById('typingIndicator');
+      clearTimeout(typingTimeout);
+
+      if (typingData.isTyping) {
+        typingIndicator.textContent = 'User is typing...';
+        typingTimeout = setTimeout(() => {
+          typingIndicator.textContent = '';
+        }, TYPING_INTERVAL);
+      } else {
+        typingIndicator.textContent = '';
       }
-  
-      // Function to delete username
-      function deleteUsername() {
-        const usernameInput = document.getElementById('username');
-        usernameInput.value = ''; 
-  
-        socket.emit('setUsername', '');
-      }
-  
-      // Function to send messages
-      function sendMessage() {
-        const messageInput = document.getElementById('messageInput');
-        const message = messageInput.value;
-  
-        socket.emit('message', { message });
-  
-        messageInput.value = '';
-      }
-  
-      // Function to create and append chat messages to the chat area
-      function appendChatMessage(data) {
-        const chatArea = document.getElementById('chatArea');
-        const messageItem = document.createElement('div');
-        messageItem.classList.add('message-item');
-  
-        messageItem.innerHTML = `<span>${data.username}: </span>${data.message}`;
-  
-        chatArea.appendChild(messageItem);
-        chatArea.scrollTop = chatArea.scrollHeight; 
-      }
-  
-      // Socket event listeners for receiving messages
-      socket.on('message', (data) => {
-        appendChatMessage(data);
-      });
-    </script>
-  </body>
+    }
+
+    // Socket event listener for receiving typing event
+    socket.on('typing', (typingData) => {
+      handleTypingIndicator(typingData);
+    });
+  </script>
+</body>
 </html>
